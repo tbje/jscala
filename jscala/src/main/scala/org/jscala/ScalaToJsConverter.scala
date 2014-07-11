@@ -6,6 +6,8 @@ import scala.reflect.macros.Context
 import scala.collection.generic.{SeqFactory, MapFactory}
 import scala.reflect.internal.Flags
 
+class JsInterface
+
 class ScalaToJsConverter[C <: Context](val c: C, debug: Boolean) extends JsBasis[C] {
   import c.universe._
 
@@ -23,7 +25,10 @@ class ScalaToJsConverter[C <: Context](val c: C, debug: Boolean) extends JsBasis
       case Select(Select(Ident(Name("org")), Name("jscala")), Name(name)) =>
         q"org.jscala.JsIdent($name)"
       // objectname.$ident => $ident
-      case s@Select(q@Ident(_), name) if q.symbol.isModule => jsExprOrDie(Ident(name))
+      case s@Select(q@Ident(_), name) if q.symbol.isModule => 
+        jsExprOrDie(Ident(name))
+      case s@Select(q, name) if q.symbol.isModule & (q.tpe <:< typeOf[JsInterface]) => 
+        jsExprOrDie(Ident(name))
       case Select(q, name) =>
         q"org.jscala.JsSelect(${jsExprOrDie(q)}, ${name.decodedName.toString})"
     }
