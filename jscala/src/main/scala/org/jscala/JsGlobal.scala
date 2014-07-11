@@ -33,6 +33,7 @@ case class JArray[A](args: A*) {
   def shift(): A = null.asInstanceOf[A]
   def unshift(items: A): Int = 0
   def slice(start: Int, end: Int) = this
+  def slice(start: Int) = this
   def sort(f: (A, A) => Int = (_, _) => 0) = this
   def splice(index: Int, howmany: Int, items: A*) = this
   def valueOf() = this
