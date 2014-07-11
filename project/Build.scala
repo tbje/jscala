@@ -12,7 +12,16 @@ object BuildSettings {
     crossScalaVersions := Seq("2.10.4", "2.11.0"),
     resolvers += Resolver.sonatypeRepo("snapshots"),
     credentials += Credentials(Path.userHome / ".ivy2" / ".credentials"),
-    publishTo <<= version((v: String) => Some( if (v.trim endsWith "SNAPSHOT") ossSnapshots else ossStaging)),
+    publishTo := {
+      val publishDir = Option(System.getProperty("publish.dir")).getOrElse(System.getProperty("user.dir")) 
+      val publishPath = "/[organization]/[module](_[scalaVersion])/[revision]/[artifact](_[scalaVersion])-[revision](-[classifier]).[ext]"
+      Some(FileRepository(
+        "Groosker Repo", 
+        Resolver.defaultFileConfiguration, 
+        Patterns(true, publishDir + publishPath)
+      ))
+    },
+    //publishTo <<= version((v: String) => Some( if (v.trim endsWith "SNAPSHOT") ossSnapshots else ossStaging)),
     publishMavenStyle := true,
     publishArtifact in Test := false,
     pomIncludeRepository := (_ => false),
