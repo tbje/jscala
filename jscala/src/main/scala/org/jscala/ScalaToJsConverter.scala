@@ -6,7 +6,9 @@ import scala.reflect.macros.Context
 import scala.collection.generic.{SeqFactory, MapFactory}
 import scala.reflect.internal.Flags
 
-class JsInterface
+class JsInterface(val objectName: String) {
+  def this() = this("")
+}
 
 class ScalaToJsConverter[C <: Context](val c: C, debug: Boolean) extends JsBasis[C] {
   import c.universe._
@@ -28,7 +30,16 @@ class ScalaToJsConverter[C <: Context](val c: C, debug: Boolean) extends JsBasis
       case s@Select(q@Ident(_), name) if q.symbol.isModule => 
         jsExprOrDie(Ident(name))
       case s@Select(q, name) if q.symbol.isModule & (q.tpe <:< typeOf[JsInterface]) => 
-        jsExprOrDie(Ident(name))
+        showRaw(q.tpe)
+        
+        q"$q.objectName" match {
+          case "" => jsExprOrDie(Ident(name))
+          case other => 
+            println(showRaw(c.enclosingClass))
+            val Name(i) = name
+            val term = TermName(i)
+            jsExprOrDie(q"$other.$term")
+        }
       case Select(q, name) =>
         q"org.jscala.JsSelect(${jsExprOrDie(q)}, ${name.decodedName.toString})"
     }
@@ -231,10 +242,15 @@ class ScalaToJsConverter[C <: Context](val c: C, debug: Boolean) extends JsBasis
         r
     }
 
+    def num(x: Tree) = q"org.jscala.JsNum(..$x, false)"
 
     lazy val jsStringHelpersExpr: ToExpr[JsExpr] = {
+     
       case q"$str.length()" if str.tpe.widen =:= typeOf[String] =>
         q"""org.jscala.JsSelect(${jsExprOrDie(str)}, "length")"""
+/*      case q"$str.startsWith($y)" =>
+        val zero = num(q"0")
+        q"""org.jscala.JsBinOp("==", $str.indexOf($y), ..$zero)"""*/
     }
 
 
