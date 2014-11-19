@@ -6,12 +6,16 @@ import scala.reflect.macros.Context
 import scala.collection.generic.{SeqFactory, MapFactory}
 import scala.reflect.internal.Flags
 
-class JsInterface
+trait JsTop // Marker trait for specifying top level Js Elements
+trait JsInterface // Marker trait to spcify that all members will be top-level.
 
 class ScalaToJsConverter[C <: Context](val c: C, debug: Boolean) extends JsBasis[C] {
   import c.universe._
 
   private val traits = collection.mutable.HashMap[String, List[Tree]]()
+
+  def isJsInterface(s: Tree) = s.tpe <:< typeOf[JsInterface]
+  def isJsTop(s: Tree) = s.tpe <:< typeOf[JsTop]
 
   def convert(tree: Tree): Tree = {
     if (debug) println(tree)
@@ -24,10 +28,13 @@ class ScalaToJsConverter[C <: Context](val c: C, debug: Boolean) extends JsBasis
       // org.scala.$ident => $ident
       case Select(Select(Ident(Name("org")), Name("jscala")), Name(name)) =>
         q"org.jscala.JsIdent($name)"
-      // objectname.$ident => $ident
-      case s@Select(q@Ident(_), name) if q.symbol.isModule => 
-        jsExprOrDie(Ident(name))
-      case s@Select(q, name) if q.symbol.isModule & (q.tpe <:< typeOf[JsInterface]) => 
+      case Select(q, name) if isJsInterface(q) =>
+        jsExprOrDie(Ident(s"$name"))
+      case Select(q, TermName("apply")) if isJsTop(q) =>
+        jsExprOrDie(Ident(s"${q.symbol.name}"))
+      case Select(q, name) if isJsTop(q) =>
+        jsExprOrDie(Ident(s"${q.symbol.name}.$name"))
+      case Select(q@Ident(_), name) if q.symbol.isModule =>
         jsExprOrDie(Ident(name))
       case Select(q, name) =>
         q"org.jscala.JsSelect(${jsExprOrDie(q)}, ${name.decodedName.toString})"
@@ -250,13 +257,22 @@ class ScalaToJsConverter[C <: Context](val c: C, debug: Boolean) extends JsBasis
     lazy val jsCallExpr: ToExpr[JsExpr] = {
       case Apply(Select(lhs, name), List(rhs)) if name.decodedName.toString.endsWith("_=") =>
         q"""org.jscala.JsBinOp("=", org.jscala.JsSelect(${jsExprOrDie(lhs)}, ${name.decodedName.toString.dropRight(2)}), ${jsExprOrDie(rhs)})"""
+      case Apply(Apply(Select(sel, Name("applyDynamic")), List(Literal(Constant(name: String)))), args) if isJsTop(sel) =>
+        val callee = jsExprOrDie(Ident(s"${sel.symbol.name}.$name"))
+        val params = listToExpr(args.map(jsExprOrDie))
+        q"org.jscala.JsCall($callee, $params)"
       case Apply(Apply(Select(sel, Name("applyDynamic")), List(Literal(Constant(name: String)))), args) =>
         val callee = q"org.jscala.JsSelect(${jsExprOrDie(sel)}, $name)"
         val params = listToExpr(args.map(jsExprOrDie))
         q"org.jscala.JsCall($callee, $params)"
+      case Apply(Apply(Select(sel, Name("updateDynamic")), List(Literal(Constant(name: String)))), List(arg)) if isJsTop(sel) =>
+        val callee = jsExprOrDie(Ident(s"${sel.symbol.name}.$name"))
+        q"""org.jscala.JsBinOp("=", $callee, ${jsExprOrDie(arg)})"""
       case Apply(Apply(Select(sel, Name("updateDynamic")), List(Literal(Constant(name: String)))), List(arg)) =>
         val callee = q"org.jscala.JsSelect(${jsExprOrDie(sel)}, $name)"
         q"""org.jscala.JsBinOp("=", $callee, ${jsExprOrDie(arg)})"""
+      case Apply(Select(sel, Name("selectDynamic")), List(Literal(Constant(name: String)))) if isJsTop(sel) =>
+        jsExprOrDie(Ident(s"${sel.symbol.name}.$name"))
       case Apply(Select(sel, Name("selectDynamic")), List(Literal(Constant(name: String)))) =>
         q"org.jscala.JsSelect(${jsExprOrDie(sel)}, $name)"
       case app@Apply(fun, args) if app.tpe <:< typeOf[JsAst] =>
