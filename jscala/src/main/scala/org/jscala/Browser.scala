@@ -6,6 +6,11 @@ object history {
   def forward() {}
   def go(i: Int) {}
   def go(url: String) {}
+  def pushState(a: String, b: String, c: String) {}
+}
+
+object event {
+  def preventDefault() {}
 }
 
 object location {
