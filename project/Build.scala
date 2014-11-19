@@ -6,18 +6,19 @@ object BuildSettings {
   val ossSnapshots = "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
   val ossStaging   = "Sonatype OSS Staging" at "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
   val buildSettings = Defaults.defaultSettings ++ Seq(
+    // offline := true, // Use when on the move...
     organization := "org.jscala",
-    version := "0.4-SNAPSHOT",
+    version := "0.5-SNAPSHOT",
     scalaVersion := "2.11.0",
     crossScalaVersions := Seq("2.10.4", "2.11.0"),
     resolvers += Resolver.sonatypeRepo("snapshots"),
     credentials += Credentials(Path.userHome / ".ivy2" / ".credentials"),
     publishTo := {
-      val publishDir = Option(System.getProperty("publish.dir")).getOrElse(System.getProperty("user.dir")) 
+      val publishDir = Option(System.getProperty("publish.dir")).getOrElse(System.getProperty("user.dir"))
       val publishPath = "/[organization]/[module](_[scalaVersion])/[revision]/[artifact](_[scalaVersion])-[revision](-[classifier]).[ext]"
       Some(FileRepository(
-        "Groosker Repo", 
-        Resolver.defaultFileConfiguration, 
+        "Groosker Repo",
+        Resolver.defaultFileConfiguration,
         Patterns(true, publishDir + publishPath)
       ))
     },
@@ -85,7 +86,7 @@ object JScalaBuild extends Build {
     file("."),
     settings = buildSettings
   ) aggregate(jscala, jscalaAnnots, examples)
-  
+
 
 
   lazy val jscala: Project = Project(
@@ -131,4 +132,3 @@ object JScalaBuild extends Build {
     )
   ) dependsOn(jscalaAnnots)
 }
-
